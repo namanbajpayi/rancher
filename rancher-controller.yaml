@@ -1,0 +1,379 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cattle-system
+  labels:
+    app.kubernetes.io/name: cattle-system
+    app.kubernetes.io/part-of: cattle-system
+
+---
+
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: cattle-system-configuration
+  namespace: cattle-system
+  labels:
+    app.kubernetes.io/name: cattle-system
+    app.kubernetes.io/part-of: cattle-system
+data:
+  log-format-upstream: '{"remote_addr": "$remote_addr", "time_local": "$time_local", "request": "$request", "status_code": "$status", "body_bytes_sent": "$body_bytes_sent", "referer": "$http_referer", "user_agent": "$http_user_agent", "api_client": $http_api_client, "api_request_id": "$http_api_request_id", "request_length": "$request_length", "request_time": "$request_time", "host": "$host", "namespace": "$namespace", "ingress_name": "$ingress_name" }'
+
+---
+
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: cattle-system-tcp-services
+  namespace: cattle-system
+  labels:
+    app.kubernetes.io/name: cattle-system
+    app.kubernetes.io/part-of: cattle-system
+
+---
+
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: cattle-system-udp-services
+  namespace: cattle-system
+  labels:
+    app.kubernetes.io/name: cattle-system
+    app.kubernetes.io/part-of: cattle-system
+
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cattle-system-ingress-serviceaccount
+  namespace: cattle-system
+  labels:
+    app.kubernetes.io/name: cattle-system
+    app.kubernetes.io/part-of: cattle-system
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cattle-system-ingress-clusterrole
+  namespace: cattle-system
+  labels:
+    app.kubernetes.io/name: cattle-system
+    app.kubernetes.io/part-of: cattle-system
+rules:
+  - apiGroups:
+      - ''
+    resources:
+      - configmaps
+      - endpoints
+      - nodes
+      - pods
+      - secrets
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - ''
+    resources:
+      - nodes
+    verbs:
+      - get
+  - apiGroups:
+      - ''
+    resources:
+      - services
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - extensions
+      - networking.k8s.io
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ''
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+  - apiGroups:
+      - extensions
+      - networking.k8s.io
+    resources:
+      - ingresses/status
+    verbs:
+      - update
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingressclasses
+    verbs:
+      - get
+      - list
+      - watch
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cattle-system-ingress-role
+  namespace: cattle-system
+  labels:
+    app.kubernetes.io/name: cattle-system
+    app.kubernetes.io/part-of: cattle-system
+rules:
+  - apiGroups:
+      - ''
+    resources:
+      - namespaces
+    verbs:
+      - get
+  - apiGroups:
+      - ''
+    resources:
+      - configmaps
+      - pods
+      - secrets
+      - endpoints
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ''
+    resources:
+      - services
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - extensions
+      - networking.k8s.io
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - extensions
+      - networking.k8s.io
+    resources:
+      - ingresses/status
+    verbs:
+      - update
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingressclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ''
+    resources:
+      - configmaps
+    resourceNames:
+      - ingress-controller-leader-nginx
+    verbs:
+      - get
+      - update
+  - apiGroups:
+      - ''
+    resources:
+      - configmaps
+    verbs:
+      - create
+  - apiGroups:
+      - ''
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cattle-system-ingress-role-nisa-binding
+  namespace: cattle-system
+  labels:
+    app.kubernetes.io/name: cattle-system
+    app.kubernetes.io/part-of: cattle-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cattle-system-ingress-role
+subjects:
+  - kind: ServiceAccount
+    name: cattle-system-ingress-serviceaccount
+    namespace: cattle-system
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cattle-system-ingress-clusterrole-nisa-binding
+  namespace: cattle-system
+  labels:
+    app.kubernetes.io/name: cattle-system
+    app.kubernetes.io/part-of: cattle-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cattle-system-ingress-clusterrole
+subjects:
+  - kind: ServiceAccount
+    name: cattle-system-ingress-serviceaccount
+    namespace: cattle-system
+
+---
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: cattle-system-controller
+  namespace: cattle-system
+  labels:
+    app.kubernetes.io/name: cattle-system
+    app.kubernetes.io/part-of: cattle-system
+  annotations:
+      service.beta.kubernetes.io/aws-load-balancer-backend-protocol: ssl
+      service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+      service.beta.kubernetes.io/aws-load-balancer-proxy-protocol: '*'
+      service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:us-east-1:578061096415:certificate/87cd01ec-2271-4bd8-a7f0-c9ba45f74aa5  #only required when you want to associate ACM
+      service.beta.kubernetes.io/aws-load-balancer-ssl-ports: https
+      service.beta.kubernetes.io/aws-load-balancer-type: nlb
+      service.beta.kubernetes.io/aws-load-balancer-target-node-labels: "cluster=rancher"
+#     service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+spec:
+  externalTrafficPolicy: Local
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: cattle-system
+    app.kubernetes.io/part-of: cattle-system
+  ports:
+    - name: https
+      port: 443
+      targetPort: 443
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cattle-system-ingress-controller
+  namespace: cattle-system
+  labels:
+    app.kubernetes.io/name: cattle-system
+    app.kubernetes.io/part-of: cattle-system
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cattle-system
+      app.kubernetes.io/part-of: cattle-system
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cattle-system
+        app.kubernetes.io/part-of: cattle-system
+      annotations:
+        prometheus.io/port: "10254"
+        prometheus.io/scrape: "true"
+    spec:
+      terminationGracePeriodSeconds: 300
+      serviceAccountName: cattle-system-ingress-serviceaccount
+      containers:
+        - name: cattle-system-ingress-controller
+          image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller:master
+          args:
+            - /nginx-ingress-controller
+            - --configmap=$(POD_NAMESPACE)/cattle-system-configuration
+            - --tcp-services-configmap=$(POD_NAMESPACE)/cattle-system-tcp-services
+            - --udp-services-configmap=$(POD_NAMESPACE)/cattle-system-udp-services
+            - --publish-service=$(POD_NAMESPACE)/cattle-system-controller
+            - --annotations-prefix=nginx.ingress.kubernetes.io
+            - --watch-namespace=cattle-system
+          securityContext:
+            allowPrivilegeEscalation: true
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - NET_BIND_SERVICE
+            runAsUser: 101
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+            - name: https
+              containerPort: 443
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /healthz
+              port: 10254
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 10
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /healthz
+              port: 10254
+              scheme: HTTP
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 10
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /wait-shutdown
+      nodeSelector:
+        cluster: rancher
+
+---
+
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: cattle-system
+  namespace: cattle-system
+  labels:
+    app.kubernetes.io/name: cattle-system
+    app.kubernetes.io/part-of: cattle-system
+spec:
+  limits:
+  - default:
+    min:
+      memory: 300Mi
+      cpu: 150m
+    type: Container
