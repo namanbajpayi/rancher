@@ -80,5 +80,3 @@ Helm is a package manager for kuberenetes. First we need to configure helm, Afte
 $ kubectl --kubeconfig $KUBECONFIG -n cattle-system exec $(kubectl --kubeconfig $KUBECONFIG -n cattle-system get pods -l app=rancher | grep '1/1' | head -1 | awk '{ print $1 }') -- ensure-default-admin
 ```
 
-### <p align="center">**Creating User in Rancher**</p>
-* Click [here](https://docs.google.com/document/d/1amxWDqG2C5zjftnc1fvtMiNu2vfFU5SacYymtSNQIuc/edit#) to go to Rancher User Creation Doc.
